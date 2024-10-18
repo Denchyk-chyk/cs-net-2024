@@ -26,17 +26,15 @@ public class Program
 		subgroup.Add(3, "Мельничук");
 		subgroup.Add(16, "Чурчак");
 
-		TryGetValues(subgroup, Enumerable.Range(1, 17).ToArray());
+		TryGetValues(subgroup, Enumerable.Range(1, 10).ToArray());
 
 		subgroup.Delete(9);
-		subgroup.Delete(3);
 		subgroup.Delete(7);
 		subgroup.Delete(12);
 		subgroup.Delete(13);
 		subgroup.Delete(15);
-		subgroup.Delete(14);
 		
-		TryGetValues(subgroup, Enumerable.Range(1, 17).ToArray());
+		TryGetValues(subgroup, Enumerable.Range(7, 10).ToArray());
 	}
 
 	private static void TryGetValues<T>(MyTree<T> tree, params int[] keys)

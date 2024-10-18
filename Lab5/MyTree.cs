@@ -1,20 +1,57 @@
 ﻿namespace Lab5
 {
-	public class MyNode<T> : IRoot<T>
+	public class MyTree<T>() : INodesContainer<T>
 	{
+		public T this[int key]
+		{
+			get
+			{
+				if (Nodes[Side.Center] == null) throw new KeyNotFoundException();
+				else return Nodes[Side.Center].Search(key);
+			}
+		}
+
+		public NodesAccessor<T> Nodes
+		{
+			get
+			{
+				if (_nodes == null) _nodes = new(this);
+				return _nodes;
+			}
+		}
+		private NodesAccessor<T> _nodes;
+
+		public void Add(int key, T value)
+		{
+			if (Nodes[Side.Center] == null) Nodes[Side.Center] = new MyNode<T>(key, value);
+			else Nodes[Side.Center].Add(key, value);
+		}
+
+		public bool Delete(int key)
+		{
+			if (Nodes[Side.Center] == null) return false;
+			else return Nodes[Side.Center].Delete(key);
+		}
+	}
+
+	public class MyNode<T> : INodesContainer<T>
+	{
+		public NodesAccessor<T> Nodes => _nodes;
+
+		public Side Side { private get; set; }
+		public INodesContainer<T> Top { get; set; }
+
 		private int _key;
-		private MyNode<T>? _left;
-		private MyNode<T>? _right;
+		private NodesAccessor<T> _nodes;
 		private T? _value;
-		private IRoot<T> _top;
 
 		private MyNode() { }
 
-		public MyNode(IRoot<T> top, int key, T value)
+		public MyNode(int key, T value)
 		{
-			_top = top;
 			_key = key;
 			_value = value;
+			_nodes = new(this);
 		}
 
 		public T Search(int key)
@@ -25,8 +62,8 @@
 			}
 			else
 			{
-				ref MyNode<T> child = ref GetChild(key);
-				if (child != null) return child.Search(key);
+				var side = CompareKeys(key);
+				if (Nodes[side] != null) return Nodes[side].Search(key);
 			}
 
 			throw new KeyNotFoundException();
@@ -40,9 +77,9 @@
 			}
 			else
 			{
-				ref var child = ref GetChild(key);
-				if (child == null) child = new MyNode<T>(this, key, value);
-				else child.Add(key, value);
+				var side = CompareKeys(key);
+				if (Nodes[side] == null) Nodes[side] = new MyNode<T>(key, value);
+				else Nodes[side].Add(key, value);
 			}
 		}
 
@@ -52,116 +89,79 @@
 			{
 				MyNode<T>? replacement = null;
 
-				if (_right == null || _left == null)
+				if (Nodes[Side.Right] == null || Nodes[Side.Left] == null)
 				{
-					replacement = _right == null ? _left : _right;
-					_top.ReplaceChild(this, replacement);
+					Top.Nodes[Side] = Nodes[Side.Right] == null ? Nodes[Side.Left] : Nodes[Side.Right];
 				}
 				else
 				{
-					replacement = _right;
+					replacement = Nodes[Side.Right];
 
-					if (_left != null)
+					if (Nodes[Side.Left] != null)
 					{
-						while (replacement._left != null)
+						while (replacement.Nodes[Side.Left] != null)
 						{
-							replacement = replacement._left;
+							replacement = replacement.Nodes[Side.Left];
 						}
 					}
 
-					replacement._top.ReplaceChild(replacement, replacement._right);
-					_top.ReplaceChild(this, replacement);
-					replacement.SetChild(ref replacement._left, _left);
-					replacement.SetChild(ref replacement._right, _right);
+					replacement.Top.Nodes[replacement.Side] = replacement.Nodes[Side.Right];
+					Top.Nodes[Side] = replacement;
+					replacement.Nodes[Side.Left] = Nodes[Side.Left];
+					replacement.Nodes[Side.Right] = Nodes[Side.Right];
 				}
 
 				return true;
 			}
 
-			var child = GetChild(key);
-			if (child != null) return child.Delete(key);
+			var side = CompareKeys(key);
+			if (Nodes[side] != null) return Nodes[side].Delete(key);
 			return false;
 		}
 
-		public ref MyNode<T> GetChild(int key)
-		{
-			if (key > _key) return ref _right;
-			else return ref _left;
-		}
-
-		private void SetChild(ref MyNode<T>? variable, MyNode<T>? value)
-		{
-			if (value != null) value._top = this;
-			variable = value;
-		}
-		
-		public void ReplaceChild(MyNode<T> current, MyNode<T>? next)
-		{
-			if (current == _right) SetChild(ref _right, next);
-			else if (current == _left) SetChild(ref _left, next);
-		}
-
-		public void Display(List<string> stack)
-		{
-			int level = 1;
-			MyNode<T> current = this;
-
-			while (current._top is MyNode<T> top)
-			{
-				current = top;
-				level++;
-			}
-
-			int topIndex = _top is MyNode<T> node ? node._key : 0;
-			int left = _left == null ? -1 : _left._key;
-			int right = _right == null ? -1 : _right._key;
-
-			stack.Add($"{level} | {_key} ( <{left} {right}> ^ {topIndex})| {_value}");
-
-			if (_right != null) _right.Display(stack);
-			if (_left != null) _left.Display(stack);
-		}
+		private Side CompareKeys(int key) => (Side)key.CompareTo(_key);
 	}
 
-	public class MyTree<T>() : IRoot<T>
+	public class NodesAccessor<T>(INodesContainer<T> container)
 	{
-		public T this[int key]
+		public MyNode<T>? this[Side side]
 		{
 			get
 			{
-				if (_root == null) throw new KeyNotFoundException();
-				else return _root.Search(key);
+				try
+				{
+					return _children[side];
+				}
+				catch (KeyNotFoundException)
+				{
+					return null;
+				}
+			}
+			set
+			{
+				if (value == null)
+				{
+					_children.Remove(side);	
+				}
+				else
+				{
+					_children[side] = value;
+					_children[side].Side = side;
+					_children[side].Top = container;
+				}
 			}
 		}
-
-		public MyNode<T>? _root;
-
-		public void Add(int key, T value)
-		{
-			if (_root == null) _root = new MyNode<T>(this, key, value);
-			else _root.Add(key, value);
-		}
-
-		public ref MyNode<T> ReplaceChild(MyNode<T> child) => ref _root;
-
-		public bool Delete(int key)
-		{
-			if (_root == null) return false;
-			else return _root.Delete(key);
-		}
-
-		public void Display()
-		{
-			List<string> list = [];
-			_root.Display(list);
-			foreach (var node in list) Console.WriteLine(node);
-		}
-
-		public void ReplaceChild(MyNode<T> current, MyNode<T> next) => _root = next;
+		
+		private Dictionary<Side, MyNode<T>> _children = [];
 	}
 
-	public interface IRoot<T>
+	public interface INodesContainer<T>
 	{
-		public void ReplaceChild(MyNode<T> current, MyNode<T> next);
+		public NodesAccessor<T> Nodes { get; }
+	}
+
+	public enum Side
+	{
+		Left = -1, Center = 0, Right = 1
 	}
 }
