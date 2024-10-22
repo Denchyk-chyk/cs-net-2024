@@ -6,14 +6,21 @@ namespace Lab3
 	{
 		private const string HexCharacters = "0123456789ABCDEF";
 
-		public static string ToHex(this ulong number)
+		public static string ToHex(this long number)
 		{
 			var hex = new StringBuilder();
+			var negative = number < 0;
+			number = Math.Abs(number);
 
-			while (number > 0)
+			while (Math.Abs(number) > 0)
 			{
 				hex.Insert(0, HexCharacters[(int)(number % 16)]);
 				number /= 16;
+			}
+
+			if (negative)
+			{
+				hex.Insert(0, "-");
 			}
 
 			return hex.ToString();
